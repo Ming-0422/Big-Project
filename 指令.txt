@@ -1,0 +1,2 @@
+uvicorn fastapi01:app --reload
+d:\大專\字幕後端\
