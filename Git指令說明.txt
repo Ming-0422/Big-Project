@@ -33,4 +33,16 @@ git push
 4. 推送到 GitHub：git push
 5. 設定遠端：git remote add origin [GitHub儲存庫網址]
 6. 更改分支名稱：git branch -M main
-7. 強制推送：git push -f origin main 
+7. 強制推送：git push -f origin main
+
+推送指令說明：
+1. 第一次推送必須設定上游分支：
+   git push --set-upstream origin main
+   或是
+   git push -u origin main
+
+2. 設定好之後可以直接使用：
+   git push
+
+3. 需要強制推送時使用：
+   git push -f 
