@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>串流字幕播放器</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>🎬 串流字幕播放器</h1>
+    
+    <form>
+      <input type="text" id="youtubeUrl" placeholder="貼上 YouTube 連結" />
+      <button type="button" id="startBtn">開始轉錄與播放</button>
+    </form>
+    
+    <div id="player"></div>
+    <div id="subtitle" class="subtitle-box">字幕會顯示在這裡</div>
+  </div>
+
+  <!-- 載入 YouTube Iframe API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <!-- 主控制 JS -->
+  <script src="script.js"></script>
+</body>
+</html>
