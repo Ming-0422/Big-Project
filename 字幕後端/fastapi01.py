@@ -9,6 +9,9 @@ import datetime
 import subprocess
 from pathlib import Path
 from typing import AsyncGenerator
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import torch
 
 import srt
 import yt_dlp
@@ -31,9 +34,19 @@ app.add_middleware(
 # 靜態檔案（可用於前端 HTML 等）
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# 建立線程池
+executor = ThreadPoolExecutor(max_workers=4)
+
+# 檢查 CUDA 是否可用
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"使用設備: {DEVICE}")
+if DEVICE == "cuda":
+    print(f"GPU型號: {torch.cuda.get_device_name(0)}")
+
 # 載入 Whisper 模型
 try:
-    model = whisper.load_model("base")
+    model = whisper.load_model("base").to(DEVICE)
+    print("模型載入完成")
 except Exception as e:
     raise RuntimeError(f"模型載入失敗: {e}")
 
@@ -49,7 +62,7 @@ def get_audio_duration(audio_path: str) -> float:
     return float(result.stdout.decode().strip())
 
 # 分割音訊
-def split_audio(audio_path, segment_duration=30):
+def split_audio(audio_path, segment_duration=15):  # 縮短片段長度
     output_dir = Path(audio_path).parent / "segments"
     output_dir.mkdir(exist_ok=True)
 
@@ -64,8 +77,8 @@ def split_audio(audio_path, segment_duration=30):
             "-ss", str(start_time),
             "-t", str(segment_duration),
             "-acodec", "libmp3lame",
-            "-q:a", "2",
-            "-ar", "44100",
+            "-q:a", "4",  # 降低音質以加快處理
+            "-ar", "16000",  # 降低採樣率
             str(segment_path),
             "-y"
         ]
@@ -74,26 +87,62 @@ def split_audio(audio_path, segment_duration=30):
 
     return segments
 
-# 逐段處理音訊並串流字幕
-async def process_audio_segment_stream(segment_path: str, start_time: float) -> AsyncGenerator[str, None]:
-    result = model.transcribe(segment_path, verbose=False)
-    for i, seg in enumerate(result["segments"]):
-        seg["start"] += start_time
-        seg["end"] += start_time
-        subtitle = srt.Subtitle(
-            index=i+1,
-            start=datetime.timedelta(seconds=seg["start"]),
-            end=datetime.timedelta(seconds=seg["end"]),
-            content=seg["text"].strip()
+# 時間格式化函數
+def format_time(seconds):
+    """將秒數轉換為 SRT 格式的時間字串 (HH:MM:SS,mmm)"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = seconds % 60
+    milliseconds = int((seconds % 1) * 1000)
+    seconds = int(seconds)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
+
+# 處理音訊片段
+def process_audio_segment(segment_path: str, start_time: float = 0) -> str:
+    try:
+        print(f"開始處理音訊片段：{segment_path}")
+        # 使用 GPU 加速轉錄
+        result = model.transcribe(
+            segment_path,
+            verbose=False,
+            task="transcribe",
+            language="zh",  # 預設使用中文
+            fp16=torch.cuda.is_available()  # 如果有 GPU 就使用 FP16
         )
-        yield srt.compose([subtitle]) + "\n"
+        
+        # 生成 SRT 格式字幕
+        srt_id = 1
+        srt_content = ""
+        
+        for segment in result["segments"]:
+            # 調整時間，加上片段的起始時間
+            start = segment["start"] + start_time
+            end = segment["end"] + start_time
+            
+            # 轉換時間格式
+            start_time_str = format_time(start)
+            end_time_str = format_time(end)
+            
+            # 組合 SRT 格式
+            srt_content += f"{srt_id}\n"
+            srt_content += f"{start_time_str} --> {end_time_str}\n"
+            srt_content += f"{segment['text'].strip()}\n\n"
+            
+            srt_id += 1
+            
+        print(f"音訊片段處理完成，產生了 {srt_id-1} 個字幕")
+        return srt_content
+        
+    except Exception as e:
+        print(f"處理音訊片段時發生錯誤: {e}")
+        raise
 
 # API：產生字幕串流
 @app.post("/api/generate-subtitle")
 async def generate_subtitle(
     file: UploadFile = File(None),
     youtube_url: str = Form(None),
-    segment_duration: int = Form(30)
+    segment_duration: int = Form(15)  # 預設改為15秒
 ):
     if not file and not youtube_url:
         raise HTTPException(status_code=400, detail="請上傳音訊檔或提供 YouTube 連結")
@@ -111,7 +160,7 @@ async def generate_subtitle(
                         'postprocessors': [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': 'mp3',
-                            'preferredquality': '192',
+                            'preferredquality': '128',  # 降低音質以加快下載
                         }],
                         'ffmpeg_location': FFMPEG_PATH
                     }
@@ -133,9 +182,18 @@ async def generate_subtitle(
 
                 # 分段 + 逐段轉錄
                 segments = split_audio(audio_path, segment_duration)
+                
+                # 使用線程池並行處理音訊片段
+                loop = asyncio.get_event_loop()
                 for start_time, segment_path in segments:
-                    async for subtitle in process_audio_segment_stream(segment_path, start_time):
-                        yield subtitle
+                    # 使用線程池執行處理
+                    srt_content = await loop.run_in_executor(
+                        executor,
+                        process_audio_segment,
+                        segment_path,
+                        start_time
+                    )
+                    yield srt_content
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"字幕產生失敗: {str(e)}")
