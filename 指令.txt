@@ -1,6 +1,8 @@
 uvicorn fastapi01:app --reload
 git hub 指令
 
+git push --force   # 如果你之前有說要蓋掉 GitHub 上的版本
+
 設定使用者名稱和信箱
 git  config  --global  user.name  "你的名稱"
 git  config  --global  user.email  "你的信箱"
