@@ -1,5 +1,6 @@
 uvicorn fastapi01:app --reload
 git hub 指令
+http://127.0.0.1:8000/static/index.html
 
 git push --force   # 如果你之前有說要蓋掉 GitHub 上的版本
 
