@@ -192,11 +192,41 @@ function updateSubtitle() {
     }
 }
 
+// --- 新增：強制更新當前字幕函式 ---
+function forceRefreshSubtitle() {
+    // 確保播放器和字幕都已準備好
+    if (!player || typeof player.getCurrentTime !== 'function' || !subtitles) {
+        return;
+    }
+
+    const currentTime = player.getCurrentTime();
+    let currentSub = null;
+
+    // 尋找目前時間點對應的字幕
+    for (let i = subtitles.length - 1; i >= 0; i--) {
+        if (currentTime >= subtitles[i].start && currentTime <= subtitles[i].end) {
+            currentSub = subtitles[i];
+            break;
+        }
+    }
+    
+    // 立即更新畫面上的文字
+    if (currentSub) {
+        subtitleDiv.textContent = currentSub.text;
+        lastSubtitle = currentSub;
+    } else {
+        subtitleDiv.textContent = "";
+        lastSubtitle = null;
+    }
+}
+
 // 按鈕事件：開始轉錄並播放影片
 document.getElementById("startBtn").onclick = async () => {
     console.log("開始按鈕被點擊"); 
     
     const url = document.getElementById("youtubeUrl").value.trim();
+    const sourceLanguage = document.getElementById("sourceLanguageSelect").value;
+    const targetLanguage = document.getElementById("targetLanguageSelect").value;
     const videoId = getYouTubeID(url);
 
     if (!videoId) {
@@ -210,18 +240,21 @@ document.getElementById("startBtn").onclick = async () => {
     subtitleSystemReady = false; // 重置字幕系統狀態
 
     try {
-        console.log("正在從 API 獲取字幕..."); 
+        console.log(`正在從 API 獲取字幕... 來源: ${sourceLanguage}, 目標: ${targetLanguage}`); 
+        const formData = new FormData();
+        formData.append('youtube_url', url);
+        formData.append('segment_duration', '30');
+        formData.append('source_language', sourceLanguage);
+        formData.append('target_language', targetLanguage);
+
         const response = await fetch(`${API_URL}/api/generate-subtitle`, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-                youtube_url: url,
-                segment_duration: "30"
-            })
+            body: formData
         });
 
         if (!response.ok) {
-            throw new Error(`伺服器錯誤！狀態碼: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `伺服器錯誤！狀態碼: ${response.status}`);
         }
 
         if (!response.body) {
@@ -279,7 +312,7 @@ document.getElementById("startBtn").onclick = async () => {
     }
 };
 
-// --- 新增：字幕顯示/隱藏功能 ---
+// 字幕顯示/隱藏功能
 const toggleSubtitleBtn = document.getElementById("toggleSubtitleBtn");
 
 toggleSubtitleBtn.onclick = () => {

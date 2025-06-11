@@ -22,11 +22,25 @@ h1 {
 .input-section {
   display: flex;
   gap: 10px;
-  margin-bottom: 30px;
+  margin-bottom: 15px;
+  align-items: center;
 }
 
 #youtubeUrl {
   flex: 1;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.lang-selection {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+#sourceLanguageSelect {
   padding: 10px;
   border: 2px solid #ddd;
   border-radius: 5px;
@@ -62,13 +76,13 @@ h1 {
 
 #subtitle {
   position: absolute;
-  bottom: 8%;
+  bottom: 14%;
   left: 50%;
   transform: translateX(-50%);
   max-width: 90%;
   background-color: rgba(0, 0, 0, 0.75);
   color: white;
-  padding: 8px 16px;
+  padding: 6px 14px;
   text-align: center;
   font-size: 1.4rem;
   border-radius: 8px;
@@ -87,15 +101,44 @@ h1 {
   display: none;
 }
 
-/* 新增：控制按鈕的通用樣式 */
+/* 新增：下方控制區樣式 */
+.controls-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 800px;
+  margin: -5px auto 15px;
+  gap: 15px;
+}
+
+.lang-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lang-controls label {
+  font-size: 14px;
+}
+
+#sourceLanguageSelect,
+#targetLanguageSelect {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+/* 控制按鈕的通用樣式 */
 .control-btn {
-  padding: 10px 20px;
-  background-color: #6c757d; /* 灰色系 */
+  padding: 8px 16px;
+  background-color: #6c757d;
   color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   transition: background-color 0.3s;
 }
 

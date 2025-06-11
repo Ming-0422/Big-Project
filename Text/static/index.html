@@ -13,7 +13,28 @@
         
         <div class="input-section">
             <input type="text" id="youtubeUrl" placeholder="請輸入 YouTube 影片連結">
-            <button id="startBtn">開始轉錄</button>
+            <button id="startBtn">產生字幕</button>
+        </div>
+
+        <div class="controls-section">
+            <div class="lang-controls">
+                <label for="sourceLanguageSelect">來源語言：</label>
+                <select id="sourceLanguageSelect">
+                    <option value="auto">自動偵測</option>
+                    <option value="zh">中文</option>
+                    <option value="en">英文</option>
+                    <option value="ja">日文</option>
+                    <option value="ko">韓文</option>
+                </select>
+                <label for="targetLanguageSelect">翻譯為：</label>
+                <select id="targetLanguageSelect">
+                    <option value="none">-- 不翻譯 --</option>
+                    <option value="en">英文</option>
+                    <option value="ja">日文</option>
+                    <option value="ko">韓文</option>
+                    <option value="zh-Hant">繁體中文</option>
+                </select>
+            </div>
             <button id="toggleSubtitleBtn" class="control-btn" title="顯示/隱藏字幕">隱藏字幕</button>
         </div>
 
@@ -26,10 +47,10 @@
             <h2>使用說明</h2>
             <ol>
                 <li>在上方輸入框中貼上 YouTube 影片連結</li>
-                <li>點擊「開始轉錄」按鈕</li>
+                <li>選擇影片的「來源語言」與想「翻譯為」的目標語言</li>
+                <li>點擊「產生字幕」按鈕</li>
                 <li>等待系統生成字幕（這可能需要幾分鐘，取決於影片長度）</li>
                 <li>字幕生成完成後，影片會自動開始播放</li>
-                <li>字幕會自動與影片同步顯示</li>
             </ol>
         </div>
     </div>

@@ -13,6 +13,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import torch
 import shutil
+import translators as ts
 
 import srt
 import yt_dlp
@@ -133,40 +134,34 @@ def format_time(seconds):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
 
 # 處理音訊片段
-def process_audio_segment(segment_path: str, start_time: float = 0) -> str:
+def process_audio_segment(segment_path: str, start_time: float = 0, language: str = None) -> list:
     try:
-        print(f"開始處理音訊片段：{segment_path}")
-        # 使用 GPU 加速轉錄
+        print(f"開始處理音訊片段：{segment_path}，語言：{language or '自動偵測'}")
+        
+        transcribe_options = {
+            "task": "transcribe",
+            "verbose": False,
+            "fp16": torch.cuda.is_available()
+        }
+        if language and language != "auto":
+            transcribe_options["language"] = language
+
         result = model.transcribe(
             segment_path,
-            verbose=False,
-            task="transcribe",
-            language="zh",  # 預設使用中文
-            fp16=torch.cuda.is_available()  # 如果有 GPU 就使用 FP16
+            **transcribe_options
         )
         
-        # 生成 SRT 格式字幕
-        srt_id = 1
-        srt_content = ""
-        
+        # 返回結構化的片段列表，而不是 SRT 字串
+        processed_segments = []
         for segment in result["segments"]:
-            # 調整時間，加上片段的起始時間
-            start = segment["start"] + start_time
-            end = segment["end"] + start_time
+            processed_segments.append({
+                "start": segment["start"] + start_time,
+                "end": segment["end"] + start_time,
+                "text": segment['text'].strip()
+            })
             
-            # 轉換時間格式
-            start_time_str = format_time(start)
-            end_time_str = format_time(end)
-            
-            # 組合 SRT 格式
-            srt_content += f"{srt_id}\n"
-            srt_content += f"{start_time_str} --> {end_time_str}\n"
-            srt_content += f"{segment['text'].strip()}\n\n"
-            
-            srt_id += 1
-            
-        print(f"音訊片段處理完成，產生了 {srt_id-1} 個字幕")
-        return srt_content
+        print(f"音訊片段處理完成，產生了 {len(processed_segments)} 個字幕片段")
+        return processed_segments
         
     except Exception as e:
         print(f"處理音訊片段時發生錯誤: {e}")
@@ -177,7 +172,9 @@ def process_audio_segment(segment_path: str, start_time: float = 0) -> str:
 async def generate_subtitle(
     file: UploadFile = File(None),
     youtube_url: str = Form(None),
-    segment_duration: int = Form(15)
+    segment_duration: int = Form(15),
+    source_language: str = Form("auto"),
+    target_language: str = Form(None)
 ):
     if not file and not youtube_url:
         raise HTTPException(status_code=400, detail="請上傳音訊檔或提供 YouTube 連結")
@@ -242,12 +239,45 @@ async def generate_subtitle(
     # --- 2. 串流階段 ---
     async def stream_generator():
         try:
-            print("前置作業完成，開始串流字幕...")
+            print(f"前置作業完成，開始串流字幕... 目標語言: {target_language or '無'}")
+            srt_id_counter = 1
             for start_time, segment_path in segments:
-                srt_content = await loop.run_in_executor(
-                    executor, process_audio_segment, segment_path, start_time
+                # 獲取轉錄後的結構化片段
+                transcribed_segments = await loop.run_in_executor(
+                    executor, process_audio_segment, segment_path, start_time, source_language
                 )
-                yield srt_content
+                
+                # 如果指定了目標語言，則在串流前進行翻譯
+                if target_language and target_language != "none" and transcribed_segments:
+                    texts_to_translate = [seg['text'] for seg in transcribed_segments]
+                    
+                    try:
+                        # 更換為 Bing 翻譯服務，提高穩定性
+                        translated_texts = await loop.run_in_executor(
+                            executor,
+                            lambda: [ts.translate_text(text, translator='bing', to_language=target_language) for text in texts_to_translate]
+                        )
+                        # 將翻譯後的文字寫回
+                        for i, seg in enumerate(transcribed_segments):
+                            seg['text'] = translated_texts[i]
+                    except Exception as trans_err:
+                        print(f"翻譯時發生錯誤，將返回原文: {trans_err}")
+
+                # 將處理完的片段（原文或譯文）格式化為 SRT 字串並傳送
+                srt_content_chunk = ""
+                for seg in transcribed_segments:
+                    start_time_str = format_time(seg['start'])
+                    end_time_str = format_time(seg['end'])
+                    
+                    srt_content_chunk += f"{srt_id_counter}\n"
+                    srt_content_chunk += f"{start_time_str} --> {end_time_str}\n"
+                    srt_content_chunk += f"{seg['text']}\n\n"
+                    
+                    srt_id_counter += 1
+                
+                if srt_content_chunk:
+                    yield srt_content_chunk
+
             print("字幕串流結束。")
         except Exception as e:
             print(f"串流期間發生錯誤: {e}")
@@ -256,3 +286,24 @@ async def generate_subtitle(
             print("暫存資料夾已清除。")
 
     return StreamingResponse(stream_generator(), media_type="text/plain")
+
+# API：翻譯文字 (此 API 在新流程中非必要，但予以保留)
+@app.post("/api/translate")
+async def translate_text_api(request: dict):
+    texts = request.get("texts", [])
+    target_language = request.get("target_language", "en")
+
+    if not texts:
+        raise HTTPException(status_code=400, detail="沒有提供需要翻譯的文字")
+
+    try:
+        # 使用線程池執行翻譯，避免阻塞
+        loop = asyncio.get_event_loop()
+        translated_texts = await loop.run_in_executor(
+            executor,
+            lambda: [ts.translate_text(text, to_language=target_language) for text in texts]
+        )
+        return {"translated_texts": translated_texts}
+    except Exception as e:
+        print(f"翻譯時發生錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"翻譯失敗: {str(e)}")
