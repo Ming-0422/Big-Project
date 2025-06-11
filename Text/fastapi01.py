@@ -12,13 +12,48 @@ from typing import AsyncGenerator
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import torch
+import shutil
 
 import srt
 import yt_dlp
 import whisper
 
 # 設定 ffmpeg 路徑
-FFMPEG_PATH = r"D:\ffmpeg\ffmpeg-master-latest-win64-gpl\bin"
+def find_ffmpeg_path():
+    """
+    自動尋找 FFMPEG 路徑，提升可攜性。
+    優先順序:
+    1. 系統 PATH
+    2. FFMPEG_PATH 環境變數
+    3. (備用) 原始的硬編碼路徑 (僅限 Windows)
+    """
+    # 1. 優先檢查系統 PATH
+    ffmpeg_exec = shutil.which("ffmpeg")
+    if ffmpeg_exec:
+        path = os.path.dirname(ffmpeg_exec)
+        print(f"在系統 PATH 中找到 ffmpeg: {path}")
+        return path
+
+    # 2. 檢查 FFMPEG_PATH 環境變數
+    if "FFMPEG_PATH" in os.environ:
+        path = os.environ["FFMPEG_PATH"]
+        # 簡單驗證路徑下是否有 ffmpeg 執行檔
+        if os.path.exists(os.path.join(path, "ffmpeg")) or os.path.exists(os.path.join(path, "ffmpeg.exe")):
+            print(f"在 FFMPEG_PATH 環境變數中找到 ffmpeg: {path}")
+            return path
+
+    # 3. 備用的硬編碼路徑 (帶有警告)
+    win_path = r"D:\ffmpeg\ffmpeg-master-latest-win64-gpl\bin"
+    if os.name == 'nt' and os.path.exists(os.path.join(win_path, "ffmpeg.exe")):
+        print(f"警告：使用硬編碼的備用路徑。建議將 ffmpeg 加入系統 PATH 或設定 FFMPEG_PATH 環境變數。路徑: {win_path}")
+        return win_path
+
+    raise RuntimeError(
+        "找不到 ffmpeg。請將 ffmpeg 執行檔所在的資料夾加入系統 PATH，"
+        "或設定一個名為 FFMPEG_PATH 的環境變數指向該資料夾。"
+    )
+
+FFMPEG_PATH = find_ffmpeg_path()
 
 app = FastAPI()
 
