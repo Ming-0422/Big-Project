@@ -17,7 +17,7 @@ import translators as ts
 
 import srt
 import yt_dlp
-import whisper
+from faster_whisper import WhisperModel
 
 # 設定 ffmpeg 路徑
 def find_ffmpeg_path():
@@ -79,9 +79,13 @@ print(f"使用設備: {DEVICE}")
 if DEVICE == "cuda":
     print(f"GPU型號: {torch.cuda.get_device_name(0)}")
 
-# 載入 Whisper 模型
+# 載入 faster-whisper 模型
 try:
-    model = whisper.load_model("base").to(DEVICE)
+    model_size = "base"
+    # 在 CPU 上使用 int8 以獲得更好的性能和更低的記憶體使用量
+    compute_type = "int8" if DEVICE == "cpu" else "float16"
+    print(f"正在載入 faster-whisper 模型: {model_size} (device: {DEVICE}, compute_type: {compute_type})")
+    model = WhisperModel(model_size, device=DEVICE, compute_type=compute_type)
     print("模型載入完成")
 except Exception as e:
     raise RuntimeError(f"模型載入失敗: {e}")
@@ -137,32 +141,34 @@ def format_time(seconds):
 def process_audio_segment(segment_path: str, start_time: float = 0, language: str = None) -> list:
     try:
         print(f"開始處理音訊片段：{segment_path}，語言：{language or '自動偵測'}")
-        
-        transcribe_options = {
-            "task": "transcribe",
-            "verbose": False,
-            "fp16": torch.cuda.is_available()
-        }
-        if language and language != "auto":
-            transcribe_options["language"] = language
 
-        result = model.transcribe(
+        # faster-whisper 的 transcribe 函數直接接受參數
+        # beam_size=5 是預設值，有助於提高準確性
+        lang_param = language if (language and language != "auto") else None
+
+        segments_iterator, info = model.transcribe(
             segment_path,
-            **transcribe_options
+            beam_size=5,
+            language=lang_param,
+            task="transcribe",
         )
-        
-        # 返回結構化的片段列表，而不是 SRT 字串
+
+        # 返回結構化的片段列表
         processed_segments = []
-        for segment in result["segments"]:
+        for segment in segments_iterator:
             processed_segments.append({
-                "start": segment["start"] + start_time,
-                "end": segment["end"] + start_time,
-                "text": segment['text'].strip()
+                "start": segment.start + start_time,
+                "end": segment.end + start_time,
+                "text": segment.text.strip()
             })
-            
+
+        # 如果是自動偵測，印出偵測到的語言
+        if lang_param is None:
+            print(f"偵測到的語言: {info.language} (機率: {info.language_probability:.2f})")
+
         print(f"音訊片段處理完成，產生了 {len(processed_segments)} 個字幕片段")
         return processed_segments
-        
+
     except Exception as e:
         print(f"處理音訊片段時發生錯誤: {e}")
         raise
