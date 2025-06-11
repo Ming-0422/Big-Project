@@ -278,3 +278,18 @@ document.getElementById("startBtn").onclick = async () => {
         subtitleDiv.textContent = "產生字幕時發生錯誤：" + (err.message || "未知錯誤");
     }
 };
+
+// --- 新增：字幕顯示/隱藏功能 ---
+const toggleSubtitleBtn = document.getElementById("toggleSubtitleBtn");
+
+toggleSubtitleBtn.onclick = () => {
+    // 檢查字幕區塊目前是否有 'hidden' 這個 class
+    const isHidden = subtitleDiv.classList.toggle("hidden");
+    
+    // 根據目前的狀態，更新按鈕上的文字
+    if (isHidden) {
+        toggleSubtitleBtn.textContent = "顯示字幕";
+    } else {
+        toggleSubtitleBtn.textContent = "隱藏字幕";
+    }
+};

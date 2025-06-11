@@ -177,60 +177,82 @@ def process_audio_segment(segment_path: str, start_time: float = 0) -> str:
 async def generate_subtitle(
     file: UploadFile = File(None),
     youtube_url: str = Form(None),
-    segment_duration: int = Form(15)  # 預設改為15秒
+    segment_duration: int = Form(15)
 ):
     if not file and not youtube_url:
         raise HTTPException(status_code=400, detail="請上傳音訊檔或提供 YouTube 連結")
 
-    async def generate():
+    tmpdir = tempfile.TemporaryDirectory()
+    loop = asyncio.get_event_loop()
+
+    try:
+        # --- 1. 準備階段 (在線程中執行，避免阻塞) ---
+        def prepare_audio(url, seg_duration, temp_dir_name, file_content=None, filename=None):
+            audio_path = None
+            if url:
+                print("開始下載 YouTube 音訊...")
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'outtmpl': os.path.join(temp_dir_name, 'audio.%(ext)s'),
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '128',
+                    }],
+                    'ffmpeg_location': FFMPEG_PATH,
+                    'noplaylist': True
+                }
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+                for f in os.listdir(temp_dir_name):
+                    if f.endswith(".mp3"):
+                        audio_path = os.path.join(temp_dir_name, f)
+                        break
+            elif file_content:
+                print("正在處理上傳的音訊檔...")
+                audio_path = os.path.join(temp_dir_name, filename)
+                with open(audio_path, "wb") as f_out:
+                    f_out.write(file_content)
+
+            if not audio_path:
+                raise ValueError("音訊檔案處理失敗，找不到有效的音訊來源。")
+            
+            print("音訊準備完成，開始分割...")
+            segments = split_audio(audio_path, seg_duration)
+            print(f"音訊分割完成，共 {len(segments)} 個片段。")
+            return segments
+
+        file_content = await file.read() if file else None
+        filename = file.filename if file else None
+        segments = await loop.run_in_executor(
+            executor, 
+            prepare_audio, 
+            youtube_url, 
+            segment_duration,
+            tmpdir.name,
+            file_content,
+            filename
+        )
+
+    except Exception as e:
+        tmpdir.cleanup()
+        print(f"字幕前置處理失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"字幕前置處理失敗: {str(e)}")
+
+    # --- 2. 串流階段 ---
+    async def stream_generator():
         try:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                audio_path = None
-
-                # 下載 YouTube 音訊
-                if youtube_url:
-                    ydl_opts = {
-                        'format': 'bestaudio/best',
-                        'outtmpl': os.path.join(tmpdir, 'audio.%(ext)s'),
-                        'postprocessors': [{
-                            'key': 'FFmpegExtractAudio',
-                            'preferredcodec': 'mp3',
-                            'preferredquality': '128',  # 降低音質以加快下載
-                        }],
-                        'ffmpeg_location': FFMPEG_PATH
-                    }
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([youtube_url])
-                    for f in os.listdir(tmpdir):
-                        if f.endswith(".mp3"):
-                            audio_path = os.path.join(tmpdir, f)
-                            break
-
-                # 處理上傳音訊
-                elif file:
-                    audio_path = os.path.join(tmpdir, file.filename)
-                    with open(audio_path, "wb") as f_out:
-                        f_out.write(await file.read())
-
-                if not audio_path:
-                    raise HTTPException(status_code=500, detail="音訊檔案處理失敗")
-
-                # 分段 + 逐段轉錄
-                segments = split_audio(audio_path, segment_duration)
-                
-                # 使用線程池並行處理音訊片段
-                loop = asyncio.get_event_loop()
-                for start_time, segment_path in segments:
-                    # 使用線程池執行處理
-                    srt_content = await loop.run_in_executor(
-                        executor,
-                        process_audio_segment,
-                        segment_path,
-                        start_time
-                    )
-                    yield srt_content
-
+            print("前置作業完成，開始串流字幕...")
+            for start_time, segment_path in segments:
+                srt_content = await loop.run_in_executor(
+                    executor, process_audio_segment, segment_path, start_time
+                )
+                yield srt_content
+            print("字幕串流結束。")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"字幕產生失敗: {str(e)}")
+            print(f"串流期間發生錯誤: {e}")
+        finally:
+            tmpdir.cleanup()
+            print("暫存資料夾已清除。")
 
-    return StreamingResponse(generate(), media_type="text/plain")
+    return StreamingResponse(stream_generator(), media_type="text/plain")

@@ -58,18 +58,49 @@ h1 {
 #player {
   width: 100%;
   aspect-ratio: 16/9;
-  margin-bottom: 20px;
 }
 
 #subtitle {
-  background-color: rgba(0, 0, 0, 0.7);
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90%;
+  background-color: rgba(0, 0, 0, 0.75);
   color: white;
-  padding: 15px;
+  padding: 8px 16px;
   text-align: center;
-  font-size: 18px;
-  min-height: 50px;
+  font-size: 1.4rem;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 1;
+  transition: opacity 0.2s ease-in-out;
+}
+
+#subtitle:empty {
+  opacity: 0;
+}
+
+/* 新增：隱藏字幕的樣式 */
+#subtitle.hidden {
+  display: none;
+}
+
+/* 新增：控制按鈕的通用樣式 */
+.control-btn {
+  padding: 10px 20px;
+  background-color: #6c757d; /* 灰色系 */
+  color: white;
+  border: none;
   border-radius: 5px;
-  margin-top: 20px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.control-btn:hover {
+  background-color: #5a6268;
 }
 
 .instructions {
