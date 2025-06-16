@@ -4,25 +4,43 @@
 <head>
     <meta charset="UTF-8" />
     <title>GPT 聊天室</title>
-    <!-- 載入 CSS 樣式 -->
     <link rel="stylesheet" href="GPT.css" />
 </head>
 
 <body>
-    <div class="container">
-        <!-- 聊天訊息區，會動態新增訊息 -->
-        <div class="chat-container" id="chat"></div>
+    <div class="app-wrapper">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button id="sidebarToggleBtn" class="sidebar-toggle-btn">☰</button>
+                <span class="app-logo">ispan</span> </div>
+
+            <div class="sidebar-menu">
+                <button class="menu-item new-chat-btn">
+                    <span class="icon-pencil">📝</span> 新的對話
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>近期</h3>
+                <ul class="recent-chats" id="recentChatsList">
+                    </ul>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent">
+            <div class="chat-header">
+                <span class="chat-title">GPT 聊天</span>
+                </div>
+
+            <div class="chat-container" id="chat"></div>
+
+            <div class="input-fixed-bottom">
+                <textarea id="userInput" placeholder="輸入您的問題..." rows="1"></textarea>
+                <button id="send"><span class="icon-arrow">↑</span></button>
+            </div>
+        </div>
     </div>
 
-    <!-- 固定在底部的輸入區 -->
-    <div class="input-fixed-bottom">
-        <!-- 使用者輸入框 -->
-        <textarea id="userInput" placeholder="輸入您的問題..." rows="1"></textarea>
-        <!-- 送出按鈕，裡面有一個箭頭符號(用span包起來方便動態切換) -->
-        <button id="send"><span class="icon-arrow">↑</span></button>
-    </div>
-
-    <!-- 載入 JavaScript，控制前端行為 -->
     <script src="GPT.js"></script>
 </body>
 
