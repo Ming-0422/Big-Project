@@ -1,14 +1,22 @@
 package com.example.gptchat.controller;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.gptchat.dto.ChatMessageDTO;
+import com.example.gptchat.dto.ChatSessionDTO;
 import com.example.gptchat.entity.ChatMessage;
 import com.example.gptchat.entity.ChatSession;
 import com.example.gptchat.service.ChatService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map; // 用於接收 JSON 請求體
 
 @RestController
 @RequestMapping("/api/chat")
@@ -16,16 +24,10 @@ public class ChatController {
 
     private final ChatService chatService;
 
-    // 構造函數注入
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
     }
 
-    // --- 新增會話相關 API ---
-
-    // 創建新會話
-    // POST /api/chat/sessions
-    // Request Body: { "memberId": 1, "title": "我的第一個聊天" }
     @PostMapping("/sessions")
     public ResponseEntity<ChatSession> createChatSession(@RequestBody Map<String, Object> payload) {
         Long memberId = Long.valueOf(payload.get("memberId").toString());
@@ -34,47 +36,68 @@ public class ChatController {
         return ResponseEntity.ok(newSession);
     }
 
-    // 獲取某個會員的所有會話列表
-    // GET /api/chat/sessions?memberId=1
     @GetMapping("/sessions")
-    public ResponseEntity<List<ChatSession>> getMemberChatSessions(@RequestParam Long memberId) {
-        List<ChatSession> sessions = chatService.getMemberSessions(memberId);
+    public ResponseEntity<List<ChatSessionDTO>> getMemberChatSessions(@RequestParam Long memberId) {
+        List<ChatSessionDTO> sessions = chatService.getMemberSessions(memberId);
         return ResponseEntity.ok(sessions);
     }
 
-    // --- 修改發送消息 API，使其與會話關聯 ---
-
-    // 向特定會話發送消息
-    // POST /api/chat/send
-    // Request Body: { "memberId": 1, "sessionId": 123, "message": "你好，AI！" }
     @PostMapping("/send")
     public ResponseEntity<String> sendMessage(@RequestBody Map<String, Object> payload) {
         Long memberId = Long.valueOf(payload.get("memberId").toString());
-        // sessionId 可以為 null，如果前端不傳或傳 null，則表示不關聯特定會話
-        Long sessionId = null;
-        if (payload.containsKey("sessionId") && payload.get("sessionId") != null) {
-            sessionId = Long.valueOf(payload.get("sessionId").toString());
-        }
+        Long sessionId = Long.valueOf(payload.get("sessionId").toString());
         String userMessage = (String) payload.get("message");
-
-        // 調用 ChatService 處理 AI 回覆和消息儲存
-        String aiResponse = chatService.getOpenAIResponse(memberId, sessionId, userMessage);
+        
+        // 單一方法完成所有操作：取得回覆、儲存對話、更新標題
+        String aiResponse = chatService.getOpenAIResponseAndSave(memberId, sessionId, userMessage);
+        
         return ResponseEntity.ok(aiResponse);
     }
 
-    // 獲取特定會話的聊天歷史
-    // GET /api/chat/history?sessionId=123
     @GetMapping("/history")
-    public ResponseEntity<List<ChatMessage>> getChatHistoryBySession(@RequestParam Long sessionId) {
+    public ResponseEntity<List<ChatMessageDTO>> getChatHistoryBySession(@RequestParam Long sessionId) {
         List<ChatMessage> history = chatService.getChatHistoryBySession(sessionId);
-        return ResponseEntity.ok(history);
+        List<ChatMessageDTO> dtoList = history.stream()
+            .map(ChatMessageDTO::new)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(dtoList);
     }
 
-    // 舊的獲取所有訊息歷史 (如果還需要的話)
-    // GET /api/chat/all-history?memberId=1
-    @GetMapping("/all-history")
-    public ResponseEntity<List<ChatMessage>> getAllChatHistory(@RequestParam Long memberId) {
-        List<ChatMessage> history = chatService.getChatHistory(memberId);
-        return ResponseEntity.ok(history);
+    @PostMapping("/updateTitle")
+    public ResponseEntity<String> updateSessionTitle(@RequestBody Map<String, Object> payload) {
+        Long sessionId = Long.valueOf(payload.get("sessionId").toString());
+        String newTitle = (String) payload.get("title");
+        
+        boolean updated = chatService.updateSessionTitle(sessionId, newTitle);
+        if (updated) {
+            return ResponseEntity.ok("標題更新成功");
+        } else {
+            return ResponseEntity.badRequest().body("標題更新失敗");
+        }
+    }
+
+    @PostMapping("/rename")
+    public ResponseEntity<String> renameSession(@RequestBody Map<String, Object> payload) {
+        Long sessionId = Long.valueOf(payload.get("sessionId").toString());
+        String newTitle = (String) payload.get("title");
+        
+        boolean updated = chatService.updateSessionTitle(sessionId, newTitle);
+        if (updated) {
+            return ResponseEntity.ok("會話重新命名成功");
+        } else {
+            return ResponseEntity.badRequest().body("會話重新命名失敗");
+        }
+    }
+
+    @PostMapping("/delete")
+    public ResponseEntity<String> deleteSession(@RequestBody Map<String, Object> payload) {
+        Long sessionId = Long.valueOf(payload.get("sessionId").toString());
+        
+        boolean deleted = chatService.deleteSession(sessionId);
+        if (deleted) {
+            return ResponseEntity.ok("會話刪除成功");
+        } else {
+            return ResponseEntity.badRequest().body("會話刪除失敗");
+        }
     }
 }

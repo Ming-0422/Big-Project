@@ -1,8 +1,20 @@
 package com.example.gptchat.entity; // 注意這裡的包名是小寫的 entity
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.List; // For the one-to-many relationship with ChatMessage
+import java.util.List;
+
+import jakarta.persistence.CascadeType; // For the one-to-many relationship with ChatMessage
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "chat_sessions") // 映射到資料庫的 chat_sessions 表
@@ -16,6 +28,10 @@ public class ChatSession {
     @ManyToOne(fetch = FetchType.LAZY) // 延遲加載，避免不必要的查詢
     @JoinColumn(name = "member_id", nullable = false) // 外鍵列名，不能為空
     private Member member; // 注意這裡引用的是 com.example.gptchat.entity.Member
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "video_id") // video_id can be null
+    private Video video;
 
     @Column(length = 100) // 標題長度限制
     private String title; // 用於給對話取標題 (例如: "關於Spring Boot的問題", "天氣查詢")
@@ -48,6 +64,14 @@ public class ChatSession {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Video getVideo() {
+        return video;
+    }
+
+    public void setVideo(Video video) {
+        this.video = video;
     }
 
     public Member getMember() {

@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>資料中心</title>
+  <link rel="stylesheet" href="主功能頁.css" />
+  <style>
+    /* —— 從 已登入首頁 複製的根變數 —— */
+    :root {
+      --bg-primary: #0d0d0f;
+      --bg-secondary: #1a1a1c;
+      --text-light: #c3c3c3;
+      --bg-bot-input: #2a2a2e;
+      --text-bot: #e5e7eb;
+      --bg-user: #3e3e42;
+      --text-user: #f3f4f6;
+      --border-input: #2c2c2e;
+      --placeholder: #6b7280;
+      --btn-disabled: #4b5563;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      color: var(--text-light);
+      font-family: "Noto Sans TC", Arial, sans-serif;
+    }
+
+    /* —— Header 與 Footer —— */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-secondary);
+      color: var(--text-light);
+      padding: 16px 24px;
+      font-size: 1.3em;
+    }
+    .navbar-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 0 24px;
+      box-sizing: border-box;
+    }
+    .nav-links { display: flex; gap: 30px; }
+    .nav-links > div { position: relative; padding: 0 1rem; cursor: pointer; color: var(--text-light); }
+    .nav-links > div::before,
+    .nav-links > div::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; height: 2px;
+      background: var(--text-light);
+      transform: scaleX(0);
+      transition: transform 0.15s ease;
+    }
+    .nav-links > div::before { top: -16px; }
+    .nav-links > div::after  { bottom: -16px; }
+    .nav-links > div:hover { color: #fff; }
+    .nav-links > div:hover::before,
+    .nav-links > div:hover::after { transform: scaleX(1); }
+
+    .footer {
+      background: var(--bg-secondary);
+      color: var(--text-light);
+      width: 100%;
+      padding: 18px 0;
+      text-align: center;
+      font-size: 1.14em;
+    }
+
+    /* —— 主內容區 —— */
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+    .data-center {
+      display: flex;
+      width: 100%;
+      max-width: 1600px;
+      gap: 0;
+      min-height: 100%;
+    }
+    .sidebar {
+      width: 240px;
+      background: var(--bg-secondary);
+      padding: 0;
+      box-sizing: border-box;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-content {
+      background: var(--bg-secondary);
+      position: relative;
+    }
+    .sidebar h2 {
+      margin: 0;
+      font-size: 1.2em;
+      color: var(--text-light);
+      background: var(--bg-secondary);
+      padding: 16px;
+      font-weight: normal;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sidebar h2:hover {
+      color: #ffffff;
+    }
+    .sidebar h2.active {
+      background: #61f6d6;
+      color: #0d0d0f;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      background: var(--bg-secondary);
+    }
+    .sidebar li {
+      margin: 0;
+      cursor: pointer;
+      color: var(--text-light);
+      padding: 16px;
+      font-size: 1.2em;
+      transition: all 0.2s ease;
+      position: relative;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--bg-primary);
+    }
+    .sidebar li:hover {
+      color: #ffffff;
+    }
+    .sidebar li.active {
+      background: #61f6d6;
+      color: #0d0d0f;
+    }
+
+    .content {
+      flex: 1;
+      background: var(--bg-secondary);
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .content details {
+      margin-bottom: 24px;
+      border: 1px solid var(--border-input);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      padding: 16px;
+    }
+    .content summary {
+      font-size: 1.2em;
+      cursor: pointer;
+      list-style: none;
+      color: var(--text-light);
+      position: relative;
+      padding-left: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .content summary::-webkit-details-marker {
+      display: none;
+    }
+    .content summary::before {
+      content: "▶";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--text-light);
+      transition: transform 0.2s ease;
+    }
+    .content details[open] summary::before {
+      transform: rotate(90deg);
+    }
+
+    /* 三個點按鈕 */
+    .options-btn {
+      background: none;
+      border: none;
+      color: var(--text-light);
+      font-size: 1.2em;
+      cursor: pointer;
+      padding: 0 8px;
+      margin-left: 8px;
+      transition: color 0.2s ease;
+    }
+    .options-btn:hover {
+      color: #ffffff;
+    }
+
+    /* 右鍵選單 */
+    .context-menu {
+      position: absolute;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      padding: 4px 0;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      z-index: 9999;
+      min-width: 120px;
+      display: none;
+    }
+
+    .context-menu-item {
+      padding: 8px 16px;
+      cursor: pointer;
+      color: var(--text-light);
+      font-size: 0.9em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background-color 0.2s ease;
+    }
+
+    .context-menu-item:hover {
+      background: var(--bg-primary);
+      color: #ffffff;
+    }
+
+    .context-menu-item.delete:hover {
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    .context-menu-item.rename:hover {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    /* 通知樣式 */
+    .notification {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      font-size: 0.9em;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      transform: translateX(120%);
+    }
+    .notification.show {
+      transform: translateX(0);
+    }
+    .notification.success {
+      background: #22c55e;
+      color: #ffffff;
+    }
+    .notification.error {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    /* --- 聊天記錄樣式 (修改後) --- */
+    .session-details {
+      margin-top: 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      /* 新增樣式 */
+      display: flex;
+      flex-direction: column;
+      gap: 8px; /* 減少訊息之間的間距 */
+      padding: 8px;
+    }
+    
+    .msg-role-user,
+.msg-role-assistant {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 18px;
+  max-width: 80%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+
+    .msg-role-user {
+      background: var(--bg-user);
+      color: var(--text-user);
+      text-align: right;
+      align-self: flex-end;
+      border-radius: 18px 18px 4px 18px;
+    }
+
+    .msg-role-assistant {
+      background: var(--bg-bot-input);
+      color: var(--text-bot);
+      align-self: flex-start;
+      border-radius: 18px 18px 18px 4px;
+    }
+
+    .continue-btn {
+      margin-top: 16px;
+      padding: 8px 16px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      align-self: center; /* 讓按鈕置中 */
+    }
+    .continue-btn:hover {
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <div class="navbar-container">
+      <div>Logo</div>
+      <div class="nav-links">
+        <div>資料中心</div>
+        <div>商城</div>
+        <div>經驗值</div>
+        <div>設定</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="data-center">
+      <aside class="sidebar">
+        <div class="sidebar-content">
+          <h2 id="sidebarTitle" class="active" onclick="selectTitle()">做過的題目</h2>
+          <ul id="sidebarMenu">
+            <li onclick="toggleConnection(this)">GPT紀錄</li>
+            <li onclick="toggleConnection(this)">筆記存檔</li>
+          </ul>
+        </div>
+      </aside>
+
+      <section class="content">
+        </section>
+    </div>
+  </main>
+
+  <footer class="footer">客服信箱</footer>
+
+  <div id="contextMenu" class="context-menu">
+    <div class="context-menu-item rename" onclick="handleContextMenuAction('rename')">
+      <span>✏️</span><span>重新命名</span>
+    </div>
+    <div class="context-menu-item delete" onclick="handleContextMenuAction('delete')">
+      <span>🗑️</span><span>刪除</span>
+    </div>
+  </div>
+
+  <script>
+    let currentSessionId = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      restoreOriginalContent();
+      
+      // 全域點擊隱藏右鍵選單
+      document.addEventListener('click', function() {
+        hideContextMenu();
+      });
+    });
+
+    function selectTitle() {
+      const content = document.querySelector('.content');
+      content.innerHTML = `
+        <h2>做過的題目</h2>
+        <p>此處顯示做過的題目列表。</p>
+      `;
+      document.querySelectorAll('.sidebar h2, .sidebar li').forEach(el => el.classList.remove('active'));
+      document.getElementById('sidebarTitle').classList.add('active');
+    }
+
+    async function toggleConnection(clickedItem) {
+      document.querySelectorAll('.sidebar h2, .sidebar li').forEach(el => el.classList.remove('active'));
+      clickedItem.classList.add('active');
+      
+      const view = clickedItem.textContent.trim();
+      if (view === 'GPT紀錄') {
+        await updateGPTContent();
+      } else if (view === '筆記存檔') {
+        const content = document.querySelector('.content');
+        content.innerHTML = `<h2>筆記存檔</h2><p>此處顯示筆記存檔內容。</p>`;
+      }
+    }
+
+    async function updateGPTContent() {
+      const contentEl = document.querySelector('.content');
+      contentEl.innerHTML = '<div>載入中...</div>';
+      
+      try {
+        const response = await fetch('/api/chat/sessions?memberId=1');
+        if (!response.ok) throw new Error('無法獲取會話');
+        const sessions = await response.json();
+        
+        let content = '';
+        if (sessions && sessions.length > 0) {
+          for (let i = 0; i < sessions.length; i++) {
+            const session = sessions[i];
+            content += `
+              <details>
+                <summary data-session-id="${session.id}">
+                  <span>${i + 1}. ${session.title || '未命名對話'}</span>
+                  <button class="options-btn" data-session-id="${session.id}" onclick="showContextMenu(event, ${session.id})">⋯</button>
+                </summary>
+                <div class="session-details" data-session-id="${session.id}">讀取中...</div>
+              </details>`;
+          }
+        } else {
+          content = '<p>暫無 GPT 對話記錄</p>';
+        }
+        contentEl.innerHTML = content;
+        bindSessionEvents();
+      } catch (error) {
+        console.error('載入失敗:', error);
+        contentEl.innerHTML = '<p>載入失敗</p>';
+      }
+    }
+
+    function bindSessionEvents() {
+      document.querySelectorAll('details').forEach(details => {
+        const summary = details.querySelector('summary');
+        summary.addEventListener('click', function(e) {
+          if (e.target.classList.contains('options-btn')) {
+            e.preventDefault();
+            return;
+          }
+          
+          setTimeout(() => {
+            if (details.open) {
+              const sessionId = summary.dataset.sessionId;
+              loadSessionDetails(sessionId);
+            }
+          }, 100);
+        });
+      });
+    }
+
+    async function loadSessionDetails(sessionId) {
+      const detailsContainer = document.querySelector(`.session-details[data-session-id="${sessionId}"]`);
+      if (!detailsContainer) return;
+      
+      try {
+        const response = await fetch(`/api/chat/history?sessionId=${sessionId}`);
+        if (!response.ok) throw new Error('無法載入歷史紀錄');
+        const messages = await response.json();
+        
+        let html = '';
+        if (messages.length > 0) {
+          messages.forEach(msg => {
+            // 處理訊息內容，移除多餘的空白和換行
+            const cleanMessage = msg.message
+              .split('\n')
+              .map(line => line.trim())
+              .filter(line => line.length > 0)
+              .join('\n');
+            html += `<div class="msg-role-${msg.role.toLowerCase()}">${cleanMessage}</div>`;
+          });
+          html += `<button class="continue-btn" onclick="continueConversation(${sessionId})">繼續此對話</button>`;
+        } else {
+          html = '<p>此對話暫無記錄</p>';
+        }
+        detailsContainer.innerHTML = html;
+      } catch (error) {
+        console.error('載入記錄失敗:', error);
+        detailsContainer.innerHTML = '<p>載入記錄失敗</p>';
+      }
+    }
+
+    function showContextMenu(event, sessionId) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      currentSessionId = sessionId;
+      const contextMenu = document.getElementById('contextMenu');
+      contextMenu.style.display = 'block';
+      
+      // 計算位置
+      let x = event.pageX;
+      let y = event.pageY;
+      
+      // 防止選單超出視窗
+      if (x + contextMenu.offsetWidth > window.innerWidth) {
+        x = window.innerWidth - contextMenu.offsetWidth - 10;
+      }
+      if (y + contextMenu.offsetHeight > window.innerHeight) {
+        y = window.innerHeight - contextMenu.offsetHeight - 10;
+      }
+      
+      contextMenu.style.left = x + 'px';
+      contextMenu.style.top = y + 'px';
+    }
+
+    function hideContextMenu() {
+      document.getElementById('contextMenu').style.display = 'none';
+    }
+
+    function handleContextMenuAction(action) {
+      if (!currentSessionId) return;
+      
+      if (action === 'rename') {
+        showRenameDialog(currentSessionId);
+      } else if (action === 'delete') {
+        showDeleteConfirmation(currentSessionId);
+      }
+      
+      hideContextMenu();
+    }
+
+    async function showRenameDialog(sessionId) {
+      const summary = document.querySelector(`summary[data-session-id="${sessionId}"]`);
+      if (!summary) return;
+      
+      const titleSpan = summary.querySelector('span');
+      const originalText = titleSpan.textContent.replace(/^[\d.]+\s*/, '').trim();
+      
+      const newTitle = prompt("請輸入新的標題:", originalText);
+      if (newTitle && newTitle.trim() !== originalText) {
+        try {
+          const response = await fetch('/api/chat/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: parseInt(sessionId), title: newTitle.trim() })
+          });
+          
+          if (!response.ok) throw new Error('請求失敗');
+          
+          showNotification('重新命名成功', 'success');
+          await updateGPTContent();
+        } catch (error) {
+          console.error('重新命名失敗:', error);
+          showNotification('重新命名失敗', 'error');
+        }
+      }
+    }
+
+    async function showDeleteConfirmation(sessionId) {
+      if (confirm('確定要刪除這個對話嗎？')) {
+        try {
+          const response = await fetch('/api/chat/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: parseInt(sessionId) })
+          });
+          
+          if (!response.ok) throw new Error('請求失敗');
+          
+          showNotification('刪除成功', 'success');
+          await updateGPTContent();
+        } catch (error) {
+          console.error('刪除失敗:', error);
+          showNotification('刪除失敗', 'error');
+        }
+      }
+    }
+
+    function showNotification(message, type = 'success') {
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.classList.add('show');
+      }, 10);
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      }, 3000);
+    }
+
+    function continueConversation(sessionId) {
+      window.location.href = `/GPT.html?sessionId=${sessionId}`;
+    }
+
+    function restoreOriginalContent() {
+      selectTitle();
+    }
+  </script>
+</body>
+</html>

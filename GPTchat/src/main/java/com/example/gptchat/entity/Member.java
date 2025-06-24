@@ -1,7 +1,9 @@
 package com.example.gptchat.entity; // 注意這裡的包名是小寫的 entity
 
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 // 如果您想在 Member 實體中添加 One-to-Many 關係來查看該會員的所有會話或消息，可以引入 List
 // import java.util.List;
 
@@ -10,20 +12,22 @@ import java.time.LocalDateTime;
 public class Member {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false, length = 50)
+    @Column(unique = true, nullable = false, length = 255)
     private String username;
 
-    @Column(unique = true, length = 100)
+    @Column(unique = true, nullable = false, length = 255)
     private String email;
 
-    @Column(nullable = false)
-    private String passwordHash; // 儲存密碼的雜湊值
+    @Column(name = "password", nullable = false, length = 255)
+    private String password; 
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(nullable = false)
+    private Long coin = 0L;
+
+    @Column(name = "current_theme", nullable = false)
+    private String currentTheme = "default";
 
     // 如果需要，可以在這裡添加與 ChatSession 和 ChatMessage 的 One-to-Many 關係
     // @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -33,14 +37,12 @@ public class Member {
     // private List<ChatMessage> messages;
 
     public Member() {
-        this.createdAt = LocalDateTime.now();
     }
 
-    public Member(String username, String email, String passwordHash) {
+    public Member(String username, String email, String password) {
         this.username = username;
         this.email = email;
-        this.passwordHash = passwordHash;
-        this.createdAt = LocalDateTime.now();
+        this.password = password;
     }
 
     // Getters and Setters
@@ -68,19 +70,27 @@ public class Member {
         this.email = email;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
+    public String getPassword() {
+        return password;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public Long getCoin() {
+        return coin;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setCoin(Long coin) {
+        this.coin = coin;
+    }
+
+    public String getCurrentTheme() {
+        return currentTheme;
+    }
+
+    public void setCurrentTheme(String currentTheme) {
+        this.currentTheme = currentTheme;
     }
 }

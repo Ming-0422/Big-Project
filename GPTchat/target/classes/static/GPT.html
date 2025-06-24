@@ -30,7 +30,7 @@
         <div class="main-content" id="mainContent">
             <div class="chat-header">
                 <span class="chat-title">GPT 聊天</span>
-                </div>
+            </div>
 
             <div class="chat-container" id="chat"></div>
 
@@ -38,6 +38,18 @@
                 <textarea id="userInput" placeholder="輸入您的問題..." rows="1"></textarea>
                 <button id="send"><span class="icon-arrow">↑</span></button>
             </div>
+        </div>
+    </div>
+
+    <!-- 右鍵選單 -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item rename" data-action="rename">
+            <span>✏️</span>
+            <span>重新命名</span>
+        </div>
+        <div class="context-menu-item delete" data-action="delete">
+            <span>🗑️</span>
+            <span>刪除</span>
         </div>
     </div>
 
